@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#17373a">
+  <title>Diagnostic technique — Aurore Talents</title>
+  <style>
+    :root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#203438;background:#f4f6ef;font-synthesis:none}
+    *{box-sizing:border-box}body{margin:0;padding:24px 14px 48px}.wrap{max-width:900px;margin:auto}
+    header{background:#17373a;color:#f4f6ef;border-radius:18px;padding:24px;margin-bottom:18px}
+    .eyebrow{font-size:11px;letter-spacing:1.7px;text-transform:uppercase;opacity:.8}h1{font-size:clamp(27px,5vw,42px);line-height:1.1;margin:12px 0}header p{line-height:1.6;max-width:680px;margin-bottom:0;color:#d7e3d8}
+    .summary,.panel{background:#fffef9;border:1px solid #dfe5d8;border-radius:16px;padding:18px;margin:14px 0}
+    .summary{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+    button{border:0;border-radius:10px;background:#17373a;color:#f4f6ef;font-weight:700;padding:12px 16px;cursor:pointer}
+    button:disabled{opacity:.6;cursor:wait}.muted{color:#758184;font-size:13px;line-height:1.6}
+    .table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:560px}th,td{text-align:left;padding:13px 10px;border-bottom:1px solid #edf0e8;vertical-align:top;font-size:13px}th{font-size:11px;color:#758184;text-transform:uppercase;letter-spacing:.6px}
+    .status{display:inline-flex;border-radius:999px;padding:5px 9px;font-weight:700;font-size:11px;background:#edf0e8;color:#56645b;white-space:nowrap}
+    .ok{background:#e4f1e4;color:#28643b}.warn{background:#fff0d6;color:#855a12}.bad{background:#f9e3e1;color:#9a3934}.run{background:#e5efd5;color:#4c6c2f}
+    .detail{display:block;margin-top:5px;color:#7c8580;line-height:1.5;overflow-wrap:anywhere}
+    .actions{display:flex;gap:10px;flex-wrap:wrap}.actions a{color:#41632d;font-size:13px}
+    footer{font-size:12px;color:#7b8780;padding:10px 3px;line-height:1.6}
+    @media(max-width:540px){body{padding:12px 10px 30px}header,.panel,.summary{padding:15px;border-radius:13px}th,td{padding:11px 8px}}
+  </style>
+</head>
+<body><main class="wrap">
+  <header><div class="eyebrow">Aurore Talents · Contrôle de santé</div><h1>Tableau de diagnostic</h1><p>Vérification en lecture seule de Supabase, de la session et du Worker Cloudflare qui gère les fichiers R2. Aucun fichier n’est envoyé, modifié ou supprimé par cette page.</p></header>
+  <section class="summary"><div><strong id="overall">Diagnostic non lancé</strong><div class="muted" id="updated">Lancez les tests pour obtenir les résultats réels de cette version.</div></div><button id="refresh" type="button">Lancer les tests</button></section>
+  <section class="panel"><div class="table-wrap"><table><thead><tr><th>Composant</th><th>État</th><th>Résultat / action</th></tr></thead><tbody id="results"><tr><td colspan="3">En attente du lancement du diagnostic.</td></tr></tbody></table></div></section>
+  <section class="panel"><h2>Comment effectuer le test complet</h2><p class="muted">Connectez-vous d’abord à Aurore Talents dans ce même navigateur. Rechargez ensuite ce tableau et lancez les tests. Le contrôle du Worker utilise la session connectée et vérifie l’accès à votre liste privée. Pour valider réellement le dépôt, ouvrez « Mon espace », envoyez un petit PDF, puis confirmez que son nom apparaît dans « Mes fichiers R2 ».</p><p class="muted">Le contrôle R2 de cette page est en lecture seule. Il ne remplace pas l’envoi réel depuis « Mon espace » et n’expose ni clé secrète, ni jeton, ni contenu de fichier.</p><div class="actions"><a href="/">Retour à Aurore Talents ↗</a><a href="https://github.com/ouali-nat/Aurore-talents-/blob/main/README.md" target="_blank" rel="noreferrer">Dépôt GitHub ↗</a><a href="https://supabase.com/dashboard/project/lhrfsgqonclwqqvjxzht" target="_blank" rel="noreferrer">Projet Supabase ↗</a><a href="https://vercel.com/aurore-talents/aurore-talents" target="_blank" rel="noreferrer">Vercel ↗</a></div></section>
+  <footer>Le statut « Test requis » signifie qu’il faut ouvrir Aurore Talents et se connecter dans ce navigateur. Les tests sont non destructifs. N’envoyez jamais de clés secrètes ou de jetons dans un message.</footer>
+</main><script type="module" src="/src/diagnostic.js"></script></body></html>
