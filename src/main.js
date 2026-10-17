@@ -18,7 +18,7 @@ const sampleOpportunities = [
   { id: 'demo-opp-2', demo: true, title: 'Présenter son idée en 3 minutes', organization: 'Aperçu de démonstration', opportunity_type: 'concours', category: 'Prise de parole', location: 'En ligne', deadline: null, description: 'Un exemple fictif d’appel à projets pour apprendre à formuler et présenter une initiative.' }
 ];
 
-const state = { user: null, view: 'discover', projects: [], opportunities: [], profiles: [], ownProfile: null, ownProjects: [], ownOpportunities: [], ownApplications: [], storageFiles: [] };
+const state = { user: null, view: 'discover', projects: [], opportunities: [], profiles: [], ownProfile: null, ownProjects: [], ownOpportunities: [], ownApplications: [], storageFiles: [], r2PickerOpen: false, r2PendingRender: false };
 const e = (value = '') => String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 const initials = (value = '') => value.trim().split(/\s+/).slice(0, 2).map((part) => part[0] || '').join('').toUpperCase() || 'A';
 const formatDate = (value) => value ? new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value)) : 'Dates à préciser';
@@ -41,7 +41,7 @@ function shell(content) {
       <button class="mobile-menu" data-action="mobile-menu" aria-label="Ouvrir le menu">☰</button>
     </div><div class="mobile-nav" id="mobile-nav">${nav.map(([id,label])=>`<button class="nav-link" data-view="${id}">${label}</button>`).join('')}${state.user?'<button class="nav-link" data-action="signout">Se déconnecter</button>':'<button class="nav-link" data-action="auth">Se connecter</button>'}</div></header>
     <main>${content}</main>
-    <footer class="site-footer"><div class="footer-brand"><span class="talent-sigil">✳</span><span><b>Aurore Talents</b><small>Les liens font grandir les idées.</small></span></div><p>Un espace pour révéler les talents, rendre les projets visibles et créer des rencontres utiles.</p><div class="footer-links"><button data-view="projects">Découvrir les projets</button><button data-view="opportunities">Voir les opportunités</button><button data-view="workspace">Créer mon espace</button></div><small class="copyright">© ${new Date().getFullYear()} Aurore · Grandir ensemble, avec attention.</small></footer>`;
+    <footer class="site-footer"><div class="footer-brand"><span class="talent-sigil">✳</span><span><b>Aurore Talents</b><small>Les liens font grandir les idées.</small></span></div><p>Un espace pour révéler les talents, rendre les projets visibles et créer des rencontres utiles.</p><div class="footer-links"><button data-view="projects">Découvrir les projets</button><button data-view="opportunities">Voir les opportunités</button><button data-view="workspace">Créer mon espace</button><a href="/diagnostic.html">Diagnostic du stockage ↗</a></div><small class="copyright">© ${new Date().getFullYear()} Aurore · Grandir ensemble, avec attention.</small></footer>`;
 }
 
 function projectCard(project) {
@@ -169,6 +169,7 @@ function ownItemList(items, type) {
 }
 
 
+
 const R2_STORAGE_URL = 'https://aurore-talents.oualikevin6.workers.dev';
 const R2_CATEGORIES = [{"value":"profils","label":"Profil et présentation"},{"value":"projets","label":"Projets"},{"value":"opportunites","label":"Opportunités et candidatures"},{"value":"documents","label":"Documents joints"},{"value":"autres","label":"Autres fichiers"}];
 
@@ -176,23 +177,54 @@ function renderR2StoragePanel() {
   return `<section class="container r2-storage-panel">
     <div class="side-card">
       <div class="panel-top"><div><span class="eyebrow">STOCKAGE PERSONNEL</span><h2>Mes fichiers R2</h2></div><span class="little-spark">↥</span></div>
-      <p class="editor-hint">Vos fichiers restent privés et sont associés à votre compte. Taille maximale : 10 Mo par fichier.</p>
+      <p class="editor-hint">Vos fichiers restent privés et associés à votre compte Talent. Taille maximale : 10 Mo par fichier. Utilisez l’un ou l’autre des deux sélecteurs sur téléphone.</p>
       <form id="r2-upload-form" class="editor-form">
         <label>Classer dans<select name="category">${R2_CATEGORIES.map((item) => `<option value="${item.value}">${item.label}</option>`).join('')}</select></label>
-        <label>Choisir un ou plusieurs fichiers<input type="file" name="files" multiple required></label>
+        <div class="r2-picker-block">
+          <label for="r2-files-input">Sélecteur 1 — fichiers à envoyer</label>
+          <button class="button button-primary" id="r2-pick-files" type="button">Parcourir les fichiers de mon téléphone</button>
+          <input id="r2-files-input" type="file" name="files" multiple aria-describedby="r2-selected-files">
+          <div id="r2-selected-files" class="r2-selected-files" role="status" aria-live="polite">Aucun fichier sélectionné. Vous pouvez utiliser l’un ou l’autre des deux sélecteurs.</div>
+        </div>
+        <div class="r2-picker-block r2-picker-secondary">
+          <label for="r2-files-input-secondary">Sélecteur 2 — solution alternative</label>
+          <button class="button button-outline" id="r2-pick-files-secondary" type="button">Choisir un PDF avec le second sélecteur</button>
+          <input id="r2-files-input-secondary" type="file" name="files-secondary" multiple aria-describedby="r2-selected-files-secondary">
+          <div id="r2-selected-files-secondary" class="r2-selected-files" role="status" aria-live="polite">Aucun fichier sélectionné dans le second sélecteur.</div>
+        </div>
         <button class="button button-primary" type="submit">Envoyer vers mon stockage ↗</button>
       </form>
       <div class="r2-message" role="status" aria-live="polite"></div>
-      <div class="r2-file-list" aria-live="polite"><p class="editor-hint">Chargement de vos fichiers…</p></div>
+      <section class="r2-diagnostic" aria-labelledby="r2-diagnostic-title">
+        <div class="r2-diagnostic-heading"><strong id="r2-diagnostic-title">Diagnostic en temps réel</strong><button type="button" class="button button-quiet" id="r2-diagnostic-clear">Effacer</button></div>
+        <p class="r2-diagnostic-intro">Les événements distinguent la sélection sur le téléphone, l’envoi réseau et la présence du fichier dans la liste R2.</p>
+        <ol id="r2-diagnostic-log" class="r2-diagnostic-log" aria-live="polite"><li><time>—</time><span>Diagnostic prêt ; en attente d’une sélection.</span></li></ol>
+      </section>
+      <div class="r2-file-list" aria-live="polite"><p class="editor-hint">Chargement des fichiers déjà enregistrés…</p></div>
     </div>
   </section>`;
+}
+
+function r2Diagnostic(message, level = 'info') {
+  const log = document.querySelector('#r2-diagnostic-log');
+  if (!log) return;
+  const item = document.createElement('li');
+  item.className = 'r2-diagnostic-' + level;
+  const time = document.createElement('time');
+  time.textContent = new Date().toLocaleTimeString();
+  const detail = document.createElement('span');
+  detail.textContent = message;
+  item.append(time, detail);
+  log.append(item);
+  while (log.children.length > 30) log.firstElementChild?.remove();
+  log.scrollTop = log.scrollHeight;
 }
 
 function renderR2FileList() {
   const container = document.querySelector('.r2-file-list');
   if (!container) return;
   if (!state.storageFiles?.length) {
-    container.innerHTML = '<p class="editor-hint">Aucun fichier enregistré pour le moment.</p>';
+    container.innerHTML = '<p class="editor-hint">Aucun fichier déjà envoyé dans le stockage. Ce message ne concerne pas un fichier seulement sélectionné au-dessus.</p>';
     return;
   }
   container.innerHTML = '<div class="r2-file-items">' + state.storageFiles.map((file) => {
@@ -220,46 +252,66 @@ async function r2Request(path, options = {}) {
   return response;
 }
 
+
 async function loadR2Files() {
   const container = document.querySelector('.r2-file-list');
   if (!container || !state.user) return;
+  r2Diagnostic('Vérification de la liste des fichiers déjà enregistrés dans R2…');
   try {
     const response = await r2Request('/api/storage/list');
     const result = await response.json();
     state.storageFiles = Array.isArray(result.objects) ? result.objects : [];
+    r2Diagnostic('Réponse de R2 : ' + state.storageFiles.length + ' fichier(s) présent(s) dans la liste.');
     renderR2FileList();
   } catch (error) {
+    r2Diagnostic('Échec du chargement de la liste R2 : ' + (error?.message || 'erreur inconnue'), 'error');
     container.innerHTML = '<p class="editor-hint">Impossible de charger les fichiers : ' + e(error.message) + '</p>';
   }
 }
 
 async function uploadR2Files(form) {
   const message = form.querySelector('.r2-message') || document.querySelector('.r2-message');
-  const data = new FormData(form);
-  const files = [...(form.querySelector('[name="files"]')?.files || [])];
-  if (!files.length) throw new Error('Choisissez au moins un fichier.');
-  if (files.some((file) => file.size > 10 * 1024 * 1024)) throw new Error('Chaque fichier doit faire 10 Mo maximum.');
   const submit = form.querySelector('button[type="submit"]');
-  submit.disabled = true;
-  if (message) message.textContent = 'Envoi des fichiers…';
   try {
+    const data = new FormData(form);
+    const files = [
+      ...(form.querySelector('[name="files"]')?.files || []),
+      ...(form.querySelector('[name="files-secondary"]')?.files || [])
+    ];
+    r2Diagnostic('Clic sur « Envoyer » : ' + files.length + ' fichier(s) remis par les deux sélecteurs.');
+    if (message) message.textContent = 'Préparation de l’envoi…';
+    if (!files.length) throw new Error('Choisissez au moins un fichier avec l’un des deux sélecteurs.');
+    if (files.some((file) => file.size > 10 * 1024 * 1024)) throw new Error('Chaque fichier doit faire 10 Mo maximum.');
+    files.forEach((file, index) => r2Diagnostic('Fichier ' + (index + 1) + ' prêt : ' + file.name + ' (' + Math.round(file.size / 1024) + ' Ko).'));
+    if (submit) submit.disabled = true;
+    if (message) message.textContent = 'Envoi des fichiers…';
     for (let index = 0; index < files.length; index++) {
       const file = files[index];
-      const safeName = file.name.normalize('NFKC').replace(/[^\p{L}\p{N}._-]+/gu, '-').replace(/^-+|-+$/g, '').slice(-160) || 'fichier';
+      const safeName = file.name.normalize('NFKC').replace(/[^\\p{L}\\p{N}._-]+/gu, '-').replace(/^-+|-+$/g, '').slice(-160) || 'fichier';
       const key = String(data.get('category') || 'autres') + '/' + Date.now() + '-' + index + '-' + safeName;
+      r2Diagnostic('Début de l’envoi réseau du fichier ' + (index + 1) + '/' + files.length + '…');
       await r2Request('/api/storage?key=' + encodeURIComponent(key), {
         method: 'POST',
         headers: { 'Content-Type': file.type || 'application/octet-stream' },
         body: file
       });
+      r2Diagnostic('Le serveur a accepté le fichier ' + (index + 1) + '/' + files.length + '.', 'success');
     }
     form.reset();
-    if (message) message.textContent = 'Fichier(s) envoyé(s) dans votre espace privé.';
+    const primaryDisplay = document.querySelector('#r2-selected-files');
+    const secondaryDisplay = document.querySelector('#r2-selected-files-secondary');
+    if (primaryDisplay) primaryDisplay.textContent = 'Aucun fichier sélectionné.';
+    if (secondaryDisplay) secondaryDisplay.textContent = 'Aucun fichier sélectionné dans le second sélecteur.';
+    if (message) message.textContent = 'Fichier(s) envoyé(s). Vérification de leur présence dans le stockage…';
+    r2Diagnostic('Envoi terminé ; vérification de la présence des fichiers dans la liste R2…', 'success');
     await loadR2Files();
+    if (message) message.textContent = 'Envoi terminé. Vérifiez ci-dessous que votre fichier apparaît dans la liste R2.';
   } catch (error) {
-    if (message) message.textContent = error.message || 'Envoi impossible.';
+    console.error('Aurore Talents R2 upload', error);
+    r2Diagnostic('ÉCHEC : ' + (error?.message || 'erreur inconnue pendant l’envoi.'), 'error');
+    if (message) message.textContent = error?.message || 'Envoi impossible.';
   } finally {
-    submit.disabled = false;
+    if (submit) submit.disabled = false;
   }
 }
 
@@ -295,6 +347,18 @@ function renderWorkspace() {
 }
 
 function render() {
+  // Android peut rendre la page pendant l'ouverture du sélecteur natif.
+  // Ne remplaçons pas le formulaire tant que le sélecteur est ouvert ou qu'un fichier doit être envoyé.
+  const uploadForm = document.querySelector('#r2-upload-form');
+  const hasSelectedR2Files = uploadForm && [...uploadForm.querySelectorAll('input[type="file"]')]
+    .some((input) => input.files?.length > 0);
+  if (state.r2PickerOpen || (state.view === 'workspace' && hasSelectedR2Files)) {
+    state.r2PendingRender = true;
+    r2Diagnostic(state.r2PickerOpen
+      ? 'Rendu de page différé : le sélecteur Android est ouvert.'
+      : 'Rendu de page différé : un fichier est sélectionné et doit rester attaché au formulaire.');
+    return;
+  }
   if (state.view === 'projects') renderProjects();
   else if (state.view === 'opportunities') renderOpportunities();
   else if (state.view === 'workspace') renderWorkspace();
@@ -380,6 +444,26 @@ function openProjectDetail(id) {
 }
 
 app.addEventListener('click', async (event) => {
+  const pickFilesButton = event.target.closest('#r2-pick-files, #r2-pick-files-secondary');
+  if (pickFilesButton) {
+    const inputId = pickFilesButton.id === 'r2-pick-files-secondary' ? '#r2-files-input-secondary' : '#r2-files-input';
+    const fileInput = document.querySelector(inputId);
+    if (fileInput instanceof HTMLInputElement) {
+      state.r2PickerOpen = true;
+      state.r2PendingRender = false;
+      r2Diagnostic('Ouverture du ' + (inputId.includes('secondary') ? 'second' : 'premier') + ' sélecteur Android…');
+      fileInput.click();
+    } else {
+      r2Diagnostic('Impossible de trouver le champ de sélection du fichier.', 'error');
+    }
+    return;
+  }
+  if (event.target.closest('#r2-diagnostic-clear')) {
+    const log = document.querySelector('#r2-diagnostic-log');
+    if (log) log.innerHTML = '';
+    r2Diagnostic('Journal effacé manuellement.');
+    return;
+  }
   const r2Download = event.target.closest('[data-r2-download]');
   if (r2Download) { try { await openR2File(r2Download.dataset.r2Download); } catch (error) { toast(error.message || 'Ouverture impossible.', 'error'); } return; }
   const r2Delete = event.target.closest('[data-r2-delete]');
@@ -441,6 +525,44 @@ modalRoot.addEventListener('submit', async (event) => {
     if(error){if(message)message.textContent=error.code==='23505'?'Vous avez déjà candidaté à cette opportunité.':error.message;submit.disabled=false;submit.textContent='Envoyer ma candidature ↗';}
     else{modalRoot.innerHTML='';toast('Candidature enregistrée.');await loadWorkspaceData();}
   }
+});
+
+// Ces deux événements gardent le fichier et son état visibles au retour du sélecteur Android.
+app.addEventListener('cancel', (event) => {
+  const input = event.target;
+  if (!(input instanceof HTMLInputElement) || !['r2-files-input', 'r2-files-input-secondary'].includes(input.id)) return;
+  state.r2PickerOpen = false;
+  r2Diagnostic('Sélecteur Android fermé sans confirmer de nouveau fichier.', 'warn');
+  if (state.r2PendingRender) {
+    state.r2PendingRender = false;
+    render();
+  }
+});
+
+app.addEventListener('change', (event) => {
+  const input = event.target;
+  if (!(input instanceof HTMLInputElement) || !['files', 'files-secondary'].includes(input.name) || !input.closest('#r2-upload-form')) return;
+  state.r2PickerOpen = false;
+  const files = [...(input.files || [])];
+  if (files.length) state.r2PendingRender = false;
+  const secondary = input.name === 'files-secondary';
+  const display = document.querySelector(secondary ? '#r2-selected-files-secondary' : '#r2-selected-files');
+  const message = document.querySelector('.r2-message');
+  if (display) {
+    if (!files.length) {
+      display.textContent = secondary ? 'Aucun fichier sélectionné dans le second sélecteur.' : 'Aucun fichier sélectionné.';
+    } else {
+      display.innerHTML = '<strong>' + files.length + (files.length > 1 ? ' fichiers sélectionnés' : ' fichier sélectionné') + '</strong><ul>' + files.map((file) => {
+        const size = file.size < 1024 * 1024 ? Math.max(1, Math.round(file.size / 1024)) + ' Ko' : (file.size / (1024 * 1024)).toFixed(2) + ' Mo';
+        return '<li>' + e(file.name) + ' <span>· ' + size + '</span></li>';
+      }).join('') + '</ul>';
+    }
+  }
+  r2Diagnostic(files.length
+    ? (secondary ? 'Second sélecteur : ' : 'Premier sélecteur : ') + files.length + ' fichier(s) remis par Android ; ' + files.map((file) => file.name + ' (' + Math.round(file.size / 1024) + ' Ko)').join(', ')
+    : (secondary ? 'Second sélecteur' : 'Premier sélecteur') + ' : aucun fichier retourné par Android.',
+    files.length ? 'success' : 'warn');
+  if (message) message.textContent = files.length ? 'Fichier prêt à être envoyé.' : '';
 });
 
 app.addEventListener('submit', async (event) => {
