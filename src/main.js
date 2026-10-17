@@ -291,7 +291,7 @@ modalRoot.addEventListener('submit', async (event) => {
   }
   if(form.id==='application-form'){
     if(!supabase||!state.user)return;
-    const fd=new FormData(form),message=document.querySelector('#application-message'),submit=form.querySelector('button[type="submit']);
+    const fd=new FormData(form),message=document.querySelector('#application-message'),submit=form.querySelector('button[type="submit"]');
     submit.disabled=true;submit.textContent='Envoi en cours…';
     const {error}=await supabase.from('talent_applications').insert({applicant_id:state.user.id,opportunity_id:form.dataset.opportunityId,motivation:String(fd.get('motivation')||'').trim(),portfolio_url:String(fd.get('portfolio_url')||'').trim()||null});
     if(error){if(message)message.textContent=error.code==='23505'?'Vous avez déjà candidaté à cette opportunité.':error.message;submit.disabled=false;submit.textContent='Envoyer ma candidature ↗';}
