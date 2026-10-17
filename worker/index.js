@@ -2,7 +2,7 @@ const ROOT = "Aurore talents/";
 
 function corsHeaders(request, env) {
   const origin = request.headers.get("Origin");
-  const allowed = (env.ALLOWED_ORIGINS || "").split(",").map((v) => v.trim()).filter(Boolean);
+  const allowed = [...new Set(["https://aurore-talents.vercel.app", ...(env.ALLOWED_ORIGINS || "").split(",").map((v) => v.trim()).filter(Boolean)])];
   const sameOrigin = origin && new URL(request.url).origin === origin;
   const headers = new Headers({
     "Vary": "Origin",
