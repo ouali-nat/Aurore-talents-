@@ -18,7 +18,7 @@ const sampleOpportunities = [
   { id: 'demo-opp-2', demo: true, title: 'Présenter son idée en 3 minutes', organization: 'Aperçu de démonstration', opportunity_type: 'concours', category: 'Prise de parole', location: 'En ligne', deadline: null, description: 'Un exemple fictif d’appel à projets pour apprendre à formuler et présenter une initiative.' }
 ];
 
-const state = { user: null, view: 'discover', projects: [], opportunities: [], profiles: [], ownProfile: null, ownProjects: [], ownOpportunities: [], ownApplications: [] };
+const state = { user: null, view: 'discover', projects: [], opportunities: [], profiles: [], ownProfile: null, ownProjects: [], ownOpportunities: [], ownApplications: [], storageFiles: [] };
 const e = (value = '') => String(value ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
 const initials = (value = '') => value.trim().split(/\s+/).slice(0, 2).map((part) => part[0] || '').join('').toUpperCase() || 'A';
 const formatDate = (value) => value ? new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value)) : 'Dates à préciser';
@@ -168,13 +168,130 @@ function ownItemList(items, type) {
   }).join('')}</div>`;
 }
 
+
+const R2_STORAGE_URL = 'https://aurore-talents.oualikevin6.workers.dev';
+const R2_CATEGORIES = [{"value":"profils","label":"Profil et présentation"},{"value":"projets","label":"Projets"},{"value":"opportunites","label":"Opportunités et candidatures"},{"value":"documents","label":"Documents joints"},{"value":"autres","label":"Autres fichiers"}];
+
+function renderR2StoragePanel() {
+  return `<section class="container r2-storage-panel">
+    <div class="side-card">
+      <div class="panel-top"><div><span class="eyebrow">STOCKAGE PERSONNEL</span><h2>Mes fichiers R2</h2></div><span class="little-spark">↥</span></div>
+      <p class="editor-hint">Vos fichiers restent privés et sont associés à votre compte. Taille maximale : 10 Mo par fichier.</p>
+      <form id="r2-upload-form" class="editor-form">
+        <label>Classer dans<select name="category">${R2_CATEGORIES.map((item) => `<option value="${item.value}">${item.label}</option>`).join('')}</select></label>
+        <label>Choisir un ou plusieurs fichiers<input type="file" name="files" multiple required></label>
+        <button class="button button-primary" type="submit">Envoyer vers mon stockage ↗</button>
+      </form>
+      <div class="r2-message" role="status" aria-live="polite"></div>
+      <div class="r2-file-list" aria-live="polite"><p class="editor-hint">Chargement de vos fichiers…</p></div>
+    </div>
+  </section>`;
+}
+
+function renderR2FileList() {
+  const container = document.querySelector('.r2-file-list');
+  if (!container) return;
+  if (!state.storageFiles?.length) {
+    container.innerHTML = '<p class="editor-hint">Aucun fichier enregistré pour le moment.</p>';
+    return;
+  }
+  container.innerHTML = '<div class="r2-file-items">' + state.storageFiles.map((file) => {
+    const name = file.key.split('/').pop() || file.key;
+    const size = file.size < 1024 * 1024 ? Math.max(1, Math.round(file.size / 1024)) + ' Ko' : (file.size / (1024 * 1024)).toFixed(1) + ' Mo';
+    return `<div class="r2-file-item"><div class="r2-file-copy"><strong>${e(name)}</strong><small>${e(file.key.split('/').slice(0, -1).join('/') || 'Autres')} · ${size}</small></div><div class="r2-file-actions"><button type="button" class="button button-outline" data-r2-download="${e(file.key)}">Ouvrir</button><button type="button" class="button button-quiet" data-r2-delete="${e(file.key)}" aria-label="Supprimer ${e(name)}">Supprimer</button></div></div>`;
+  }).join('') + '</div>';
+}
+
+async function r2Request(path, options = {}) {
+  if (!supabase) throw new Error('Supabase n’est pas configuré.');
+  const { data, error } = await supabase.auth.getSession();
+  if (error) throw error;
+  const token = data.session?.access_token;
+  if (!token) throw new Error('Connectez-vous pour accéder à vos fichiers.');
+  const response = await fetch(R2_STORAGE_URL + path, {
+    ...options,
+    headers: { Authorization: 'Bearer ' + token, ...(options.headers || {}) }
+  });
+  if (!response.ok) {
+    let detail = '';
+    try { detail = (await response.json()).error || ''; } catch {}
+    throw new Error(detail || 'Erreur du stockage (' + response.status + ').');
+  }
+  return response;
+}
+
+async function loadR2Files() {
+  const container = document.querySelector('.r2-file-list');
+  if (!container || !state.user) return;
+  try {
+    const response = await r2Request('/api/storage/list');
+    const result = await response.json();
+    state.storageFiles = Array.isArray(result.objects) ? result.objects : [];
+    renderR2FileList();
+  } catch (error) {
+    container.innerHTML = '<p class="editor-hint">Impossible de charger les fichiers : ' + e(error.message) + '</p>';
+  }
+}
+
+async function uploadR2Files(form) {
+  const message = form.querySelector('.r2-message') || document.querySelector('.r2-message');
+  const data = new FormData(form);
+  const files = [...(form.querySelector('[name="files"]')?.files || [])];
+  if (!files.length) throw new Error('Choisissez au moins un fichier.');
+  if (files.some((file) => file.size > 10 * 1024 * 1024)) throw new Error('Chaque fichier doit faire 10 Mo maximum.');
+  const submit = form.querySelector('button[type="submit"]');
+  submit.disabled = true;
+  if (message) message.textContent = 'Envoi des fichiers…';
+  try {
+    for (let index = 0; index < files.length; index++) {
+      const file = files[index];
+      const safeName = file.name.normalize('NFKC').replace(/[^\p{L}\p{N}._-]+/gu, '-').replace(/^-+|-+$/g, '').slice(-160) || 'fichier';
+      const key = String(data.get('category') || 'autres') + '/' + Date.now() + '-' + index + '-' + safeName;
+      await r2Request('/api/storage?key=' + encodeURIComponent(key), {
+        method: 'POST',
+        headers: { 'Content-Type': file.type || 'application/octet-stream' },
+        body: file
+      });
+    }
+    form.reset();
+    if (message) message.textContent = 'Fichier(s) envoyé(s) dans votre espace privé.';
+    await loadR2Files();
+  } catch (error) {
+    if (message) message.textContent = error.message || 'Envoi impossible.';
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+async function openR2File(key) {
+  const response = await r2Request('/api/storage?key=' + encodeURIComponent(key));
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = key.split('/').pop() || 'fichier';
+  link.rel = 'noopener';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
+}
+
+async function deleteR2File(key) {
+  if (!window.confirm('Supprimer définitivement ce fichier de votre stockage ?')) return;
+  await r2Request('/api/storage?key=' + encodeURIComponent(key), { method: 'DELETE' });
+  state.storageFiles = (state.storageFiles || []).filter((file) => file.key !== key);
+  renderR2FileList();
+}
+
 function renderWorkspace() {
   if (!state.user) {
     shell(`<section class="workspace-guest container"><div class="workspace-decoration"><span class="decor-big">✳</span><span class="decor-small">↗</span></div><div class="eyebrow"><span class="eyebrow-dot"></span> MON ESPACE AURORE</div><h1>Votre talent mérite<br><em>un réseau qui l’écoute.</em></h1><p>Créez votre profil, gardez une trace de vos projets et soumettez vos idées à une communauté qui grandit avec attention.</p><div class="workspace-benefits"><span>✓ Un profil à votre image</span><span>✓ Des projets à faire connaître</span><span>✓ Une publication validée</span></div><button class="button button-primary button-large" data-action="auth">Créer mon espace <span>↗</span></button><p class="fine-print">Aucun profil ou projet n’est publié automatiquement.</p></section>`);
     return;
   }
   shell(`<section class="workspace-header"><div class="container workspace-title-row"><div><div class="eyebrow"><span class="eyebrow-dot"></span> MON ESPACE</div><h1>Les prochaines étapes commencent ici.</h1><p>Développez votre profil, puis faites connaître vos initiatives.</p></div><button class="button button-outline" data-action="signout">Se déconnecter</button></div></section>
-    <section class="container workspace-layout"><div class="workspace-main">${profileForm()}${projectForm()}${opportunityForm()}</div><aside class="workspace-side"><div class="side-card side-welcome"><span class="side-sigil">✳</span><div class="eyebrow">VOTRE ESPACE</div><h2>Un petit pas<br>fait avancer l’idée.</h2><p>Commencez par un profil clair. Vous pourrez ensuite présenter plusieurs projets ou opportunités.</p><div class="side-steps"><span><b>01</b> Profil</span><span><b>02</b> Projet</span><span><b>03</b> Relecture</span></div></div><div class="side-card"><div class="side-heading"><h3>Mes projets</h3><span class="count-pill">${state.ownProjects.length}</span></div>${ownItemList(state.ownProjects,'project')}</div><div class="side-card"><div class="side-heading"><h3>Mes opportunités</h3><span class="count-pill">${state.ownOpportunities.length}</span></div>${ownItemList(state.ownOpportunities,'opportunity')}</div><div class="notice notice-info">Les états de validation sont gérés séparément afin d’éviter qu’un utilisateur ne publie lui-même son contenu.</div></aside></section>`);
+    <section class="container workspace-layout"><div class="workspace-main">${profileForm()}${projectForm()}${opportunityForm()}</div><aside class="workspace-side"><div class="side-card side-welcome"><span class="side-sigil">✳</span><div class="eyebrow">VOTRE ESPACE</div><h2>Un petit pas<br>fait avancer l’idée.</h2><p>Commencez par un profil clair. Vous pourrez ensuite présenter plusieurs projets ou opportunités.</p><div class="side-steps"><span><b>01</b> Profil</span><span><b>02</b> Projet</span><span><b>03</b> Relecture</span></div></div><div class="side-card"><div class="side-heading"><h3>Mes projets</h3><span class="count-pill">${state.ownProjects.length}</span></div>${ownItemList(state.ownProjects,'project')}</div><div class="side-card"><div class="side-heading"><h3>Mes opportunités</h3><span class="count-pill">${state.ownOpportunities.length}</span></div>${ownItemList(state.ownOpportunities,'opportunity')}</div><div class="notice notice-info">Les états de validation sont gérés séparément afin d’éviter qu’un utilisateur ne publie lui-même son contenu.</div></aside></section>${renderR2StoragePanel()}`);
+  loadR2Files();
 }
 
 function render() {
@@ -263,6 +380,10 @@ function openProjectDetail(id) {
 }
 
 app.addEventListener('click', async (event) => {
+  const r2Download = event.target.closest('[data-r2-download]');
+  if (r2Download) { try { await openR2File(r2Download.dataset.r2Download); } catch (error) { toast(error.message || 'Ouverture impossible.', 'error'); } return; }
+  const r2Delete = event.target.closest('[data-r2-delete]');
+  if (r2Delete) { try { await deleteR2File(r2Delete.dataset.r2Delete); toast('Fichier supprimé.'); } catch (error) { toast(error.message || 'Suppression impossible.', 'error'); } return; }
   const viewButton = event.target.closest('[data-view]');
   if (viewButton) {
     state.view = viewButton.dataset.view;
@@ -324,6 +445,7 @@ modalRoot.addEventListener('submit', async (event) => {
 
 app.addEventListener('submit', async (event) => {
   const form=event.target;
+  if (form.id === 'r2-upload-form') { event.preventDefault(); await uploadR2Files(form); return; }
   if(!['profile-form','project-form','opportunity-form'].includes(form.id))return;
   event.preventDefault();
   if(!supabase||!state.user){showAuth('signin');return;}
