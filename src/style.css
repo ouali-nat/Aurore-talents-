@@ -37,3 +37,28 @@
   .r2-file-item { align-items: flex-start; flex-direction: column; }
   .r2-file-actions { width: 100%; }
 }
+
+
+/* Sélecteurs et diagnostic R2 : contrôles redondants pensés pour Android. */
+.r2-picker-block{display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--line);border-radius:13px;background:#fbfcf7}
+.r2-picker-secondary{background:#f0f3e9;border-color:#d8e0d1}
+.r2-picker-block input[type=file]{display:block;width:100%;max-width:100%;font-size:12px;color:var(--ink)}
+.r2-picker-block .button{align-self:flex-start;max-width:100%;white-space:normal;text-align:center}
+.r2-selected-files{padding:12px 13px;border:1px solid var(--line);border-radius:10px;background:#fffef9;color:#5c6c66;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.r2-selected-files:empty{display:none}
+.r2-selected-files strong{display:block;color:var(--deep);margin-bottom:5px}
+.r2-selected-files ul{margin:5px 0 0;padding-left:18px}
+.r2-selected-files li{margin:3px 0}
+.r2-selected-files li span{color:#77847e;white-space:nowrap}
+.r2-diagnostic{margin-top:1rem;padding:14px;border:1px solid #d7e1ce;border-radius:13px;background:#f1f5e9;color:var(--ink)}
+.r2-diagnostic-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px}
+.r2-diagnostic-heading .button{padding:7px 10px;font-size:10px}
+.r2-diagnostic-intro{font-size:10px;line-height:1.6;color:#758178;margin:8px 0 10px}
+.r2-diagnostic-log{list-style:none;margin:0;padding:0;max-height:260px;overflow:auto;display:flex;flex-direction:column;gap:7px}
+.r2-diagnostic-log li{display:flex;align-items:flex-start;gap:8px;font-size:10px;line-height:1.55;overflow-wrap:anywhere}
+.r2-diagnostic-log time{flex:0 0 auto;color:#78857b;font-variant-numeric:tabular-nums}
+.r2-diagnostic-log li span{min-width:0}
+.r2-diagnostic-success span{color:#376b3c}
+.r2-diagnostic-error span{color:#a23f3f;font-weight:600}
+.r2-diagnostic-warn span{color:#94671f}
+@media(max-width:560px){.r2-picker-block{padding:11px}.r2-picker-block .button{width:100%;align-self:stretch}.r2-diagnostic{padding:11px}.r2-diagnostic-log{max-height:220px}}
