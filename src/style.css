@@ -18,3 +18,7 @@
 .site-footer::before{content:"";position:absolute;left:0;top:-1px;width:74px;height:2px;background:#7c9b4b}
 @media(max-width:650px){.site-header::before{height:24px;padding-top:6px;font-size:7px;letter-spacing:1.5px}.mobile-nav{top:108px}.project-card:hover,.pillar-card:hover{transform:none}.site-header{scroll-margin-top:24px}}
 @media(prefers-reduced-motion:reduce){.project-card,.pillar-card,.opportunity-card,.button,.nav-link{transition:none!important}}
+
+
+/* Aurore ID single-sign-on entry; no unconfigured social providers are shown. */
+.sso-entry{margin:0 0 18px}.button-sso{width:100%;justify-content:space-between;gap:10px;background:#fffef9;color:var(--deep);border-color:#dfe6d8}.button-sso:hover{background:#f7fbf2;border-color:#c7d6b6}.sso-mark{display:grid;place-items:center;width:29px;height:29px;flex:0 0 29px;border-radius:9px;background:#17373a;color:var(--green);font-size:11px;font-weight:800;letter-spacing:.4px}.sso-label{flex:1;text-align:left}.sso-subtitle{text-align:center;color:#7d8a83;font-size:10px;line-height:1.6;margin:8px 0 17px}.sso-divider{display:flex;align-items:center;gap:11px;color:#7d8a83;font-size:10px}.sso-divider:before,.sso-divider:after{content:"";height:1px;background:#dfe6d8;flex:1}.sso-guest{display:block;margin:17px auto 0;border:0;background:transparent;color:#7d8a83;font-size:10px;text-decoration:underline;text-underline-offset:3px}.sso-guest:hover{color:#415f2c}

@@ -219,8 +219,31 @@ function showAuth(mode = 'signin') {
     modalRoot.innerHTML = '<div class="modal-backdrop" id="auth-overlay"><section class="auth-modal"><button class="modal-close" data-action="close-modal" aria-label="Fermer">×</button><span class="talent-sigil modal-sigil">✳</span><h2>Encore un réglage.</h2><p>Les variables Supabase ne sont pas configurées. Consultez le README du dépôt pour terminer le raccordement.</p><button class="button button-primary full-width" data-action="close-modal">Compris</button></section></div>';
     return;
   }
-  modalRoot.innerHTML = `<div class="modal-backdrop" id="auth-overlay"><section class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title"><button class="modal-close" data-action="close-modal" aria-label="Fermer">×</button><span class="talent-sigil modal-sigil">✳</span><div class="eyebrow">AURORE TALENTS</div><h2 id="auth-title">${mode==='signup'?'Faites grandir votre réseau.':'Heureux de vous retrouver.'}</h2><p>${mode==='signup'?'Créez un espace pour votre profil, vos projets et vos futures rencontres.':'Retrouvez votre espace et poursuivez vos projets.'}</p><form id="auth-form" data-mode="${mode}" class="auth-form">${mode==='signup'?'<label>Nom affiché<input name="display_name" autocomplete="name" required maxlength="100" placeholder="Comment vous appeler ?"></label>':''}<label>Adresse e-mail<input name="email" type="email" autocomplete="email" required placeholder="vous@exemple.com"></label><label>Mot de passe<input name="password" type="password" minlength="8" autocomplete="${mode==='signup'?'new-password':'current-password'}" required placeholder="8 caractères minimum"></label><button class="button button-primary button-large full-width" type="submit">${mode==='signup'?'Créer mon espace':'Me connecter'} <span>↗</span></button><p class="auth-message" id="auth-message"></p></form><div class="auth-switch">${mode==='signup'?'Vous avez déjà un compte ?':'Nouveau dans le réseau ?'} <button data-auth-mode="${mode==='signup'?'signin':'signup'}">${mode==='signup'?'Se connecter':'Créer un compte'}</button></div><small class="auth-privacy">Vos données privées ne sont accessibles qu’à votre compte.</small></section></div>`;
+  modalRoot.innerHTML = `<div class="modal-backdrop" id="auth-overlay"><section class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="auth-title"><button class="modal-close" data-action="close-modal" aria-label="Fermer">×</button><span class="talent-sigil modal-sigil">✳</span><div class="eyebrow">AURORE TALENTS</div><h2 id="auth-title">${mode==='signup'?'Faites grandir votre réseau.':'Heureux de vous retrouver.'}</h2><p>${mode==='signup'?'Créez un espace pour votre profil, vos projets et vos futures rencontres.':'Retrouvez votre espace et poursuivez vos projets.'}</p>        <div class="sso-entry">
+          <button class="button button-sso button-large full-width" type="button" data-action="aurore-id"><span class="sso-mark">ID</span><span class="sso-label">Continuer avec Aurore ID</span><span aria-hidden="true">↗</span></button>
+          <p class="sso-subtitle">Un accès unique pour les services Aurore.</p>
+          <div class="sso-divider"><span>ou avec votre compte local</span></div>
+        </div><form id="auth-form" data-mode="${mode}" class="auth-form">${mode==='signup'?'<label>Nom affiché<input name="display_name" autocomplete="name" required maxlength="100" placeholder="Comment vous appeler ?"></label>':''}<label>Adresse e-mail<input name="email" type="email" autocomplete="email" required placeholder="vous@exemple.com"></label><label>Mot de passe<input name="password" type="password" minlength="8" autocomplete="${mode==='signup'?'new-password':'current-password'}" required placeholder="8 caractères minimum"></label><button class="button button-primary button-large full-width" type="submit">${mode==='signup'?'Créer mon espace':'Me connecter'} <span>↗</span></button><p class="auth-message" id="auth-message"></p></form><div class="auth-switch">${mode==='signup'?'Vous avez déjà un compte ?':'Nouveau dans le réseau ?'} <button data-auth-mode="${mode==='signup'?'signin':'signup'}">${mode==='signup'?'Se connecter':'Créer un compte'}</button></div><button class="sso-guest" type="button" data-action="close-modal">Visiter Aurore Talents sans compte</button><small class="auth-privacy">Vos données privées ne sont accessibles qu’à votre compte.</small></section></div>`;
   document.querySelector('#auth-overlay input')?.focus();
+}
+
+async function startAuroreIdSignIn(button) {
+  const message = modalRoot.querySelector('#auth-message');
+  if (!supabase) {
+    if (message) message.textContent = 'La connexion Aurore ID n’est pas disponible pour le moment. Réessayez plus tard.';
+    return;
+  }
+  const label = button.querySelector('.sso-label');
+  button.disabled = true;
+  if (label) label.textContent = 'Redirection vers Aurore ID…';
+  try {
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'custom:aurore-id' });
+    if (error) throw error;
+  } catch (error) {
+    if (message) message.textContent = error?.message || 'La connexion avec Aurore ID n’a pas abouti. Vérifiez la configuration du fournisseur.';
+    button.disabled = false;
+    if (label) label.textContent = 'Continuer avec Aurore ID';
+  }
 }
 
 function showApply(opportunity) {
@@ -269,7 +292,7 @@ app.addEventListener('click', async (event) => {
   if (authMode) showAuth(authMode.dataset.authMode);
   if (event.target.id==='auth-overlay' || event.target.id==='apply-overlay' || event.target.id==='detail-overlay' || event.target.id==='info-overlay') modalRoot.innerHTML='';
 });
-modalRoot.addEventListener('click',(event)=>{if(event.target.closest('[data-action="close-modal"]')){modalRoot.innerHTML='';return;}const modeButton=event.target.closest('[data-auth-mode]');if(modeButton){showAuth(modeButton.dataset.authMode);return;}if(event.target===modalRoot.firstElementChild)modalRoot.innerHTML='';});
+modalRoot.addEventListener('click',(event)=>{const auroreIdButton=event.target.closest('[data-action="aurore-id"]');if(auroreIdButton){startAuroreIdSignIn(auroreIdButton);return;}if(event.target.closest('[data-action="close-modal"]')){modalRoot.innerHTML='';return;}const modeButton=event.target.closest('[data-auth-mode]');if(modeButton){showAuth(modeButton.dataset.authMode);return;}if(event.target===modalRoot.firstElementChild)modalRoot.innerHTML='';});
 
 modalRoot.addEventListener('submit', async (event) => {
   event.preventDefault();
