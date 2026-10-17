@@ -287,7 +287,7 @@ async function uploadR2Files(form) {
     if (message) message.textContent = 'Envoi des fichiers…';
     for (let index = 0; index < files.length; index++) {
       const file = files[index];
-      const safeName = file.name.normalize('NFKC').replace(/[^\\p{L}\\p{N}._-]+/gu, '-').replace(/^-+|-+$/g, '').slice(-160) || 'fichier';
+      const safeName = file.name.normalize('NFKC').replace(/[^\p{L}\p{N}._-]+/gu, '-').replace(/^-+|-+$/g, '').slice(-160) || 'fichier';
       const key = String(data.get('category') || 'autres') + '/' + Date.now() + '-' + index + '-' + safeName;
       r2Diagnostic('Début de l’envoi réseau du fichier ' + (index + 1) + '/' + files.length + '…');
       await r2Request('/api/storage?key=' + encodeURIComponent(key), {
