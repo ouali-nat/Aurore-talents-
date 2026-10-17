@@ -269,7 +269,7 @@ app.addEventListener('click', async (event) => {
   if (authMode) showAuth(authMode.dataset.authMode);
   if (event.target.id==='auth-overlay' || event.target.id==='apply-overlay' || event.target.id==='detail-overlay' || event.target.id==='info-overlay') modalRoot.innerHTML='';
 });
-modalRoot.addEventListener('click',(event)=>{if(event.target===modalRoot.firstElementChild)modalRoot.innerHTML='';});
+modalRoot.addEventListener('click',(event)=>{if(event.target.closest('[data-action="close-modal"]')){modalRoot.innerHTML='';return;}const modeButton=event.target.closest('[data-auth-mode]');if(modeButton){showAuth(modeButton.dataset.authMode);return;}if(event.target===modalRoot.firstElementChild)modalRoot.innerHTML='';});
 
 modalRoot.addEventListener('submit', async (event) => {
   event.preventDefault();
@@ -312,20 +312,18 @@ app.addEventListener('submit', async (event) => {
     if(form.id==='profile-form'){
       const rawHandle=String(fd.get('handle')||'').trim().toLowerCase();
       const payload={display_name:String(fd.get('display_name')||'').trim(),handle:rawHandle,headline:String(fd.get('headline')||'').trim(),bio:String(fd.get('bio')||'').trim(),location:String(fd.get('location')||'').trim(),profile_type:String(fd.get('profile_type')||'student'),skills:toTags(fd.get('skills')),interests:toTags(fd.get('interests')),updated_at:new Date().toISOString(),...(submitting?{submission_requested_at:submittedAt}:{})};
-      const query=state.ownProfile
-        ? supabase.from('talent_profiles').update(payload).eq('id',state.user.id)
-        : supabase.from('talent_profiles').insert({id:state.user.id,...payload});
-      ({error}=await query);
+      if(state.ownProfile){({error}=await supabase.from('talent_profiles').update(payload).eq('id',state.user.id));}
+      else{const {updated_at,...insertPayload}=payload;({error}=await supabase.from('talent_profiles').insert({id:state.user.id,...insertPayload}));}
     }else if(form.id==='project-form'){
       if(!state.ownProfile){throw new Error('Enregistrez d’abord votre profil avant de créer un projet.');}
       const payload={owner_id:state.user.id,title:String(fd.get('title')||'').trim(),tagline:String(fd.get('tagline')||'').trim(),description:String(fd.get('description')||'').trim(),category:String(fd.get('category')||'').trim(),stage:String(fd.get('stage')||'idée'),location:String(fd.get('location')||'').trim(),skills:toTags(fd.get('skills')),updated_at:new Date().toISOString(),...(submitting?{submission_requested_at:submittedAt}:{})};
-      ({error}=await supabase.from('talent_projects').insert(payload));
+      const {updated_at,...insertPayload}=payload;({error}=await supabase.from('talent_projects').insert(insertPayload));
     }else{
       if(!state.ownProfile){throw new Error('Enregistrez d’abord votre profil avant de proposer une opportunité.');}
       const rawDate=String(fd.get('deadline')||'');
       const external=String(fd.get('external_url')||'').trim();
       const payload={owner_id:state.user.id,title:String(fd.get('title')||'').trim(),organization:String(fd.get('organization')||'').trim(),description:String(fd.get('description')||'').trim(),category:'Opportunité communautaire',opportunity_type:String(fd.get('opportunity_type')||'autre'),location:String(fd.get('location')||'').trim(),deadline:rawDate||null,external_url:external||null,updated_at:new Date().toISOString(),...(submitting?{submission_requested_at:submittedAt}:{})};
-      ({error}=await supabase.from('talent_opportunities').insert(payload));
+      const {updated_at,...insertPayload}=payload;({error}=await supabase.from('talent_opportunities').insert(insertPayload));
     }
     if(error)throw error;
     toast(submitting?'Votre contribution a été envoyée à la file de validation.':'Votre contribution a été enregistrée.');
